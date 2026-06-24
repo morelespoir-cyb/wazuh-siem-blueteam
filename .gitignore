@@ -1,0 +1,49 @@
+# ===================================================================
+# .gitignore — Projet SIEM Wazuh 
+# ===================================================================
+
+# Données sensibles Wazuh
+*.key
+*.pem
+*.cert
+*.crt
+config/wazuh_indexer_ssl_certs/
+config/wazuh_cluster/
+secrets/
+
+# Logs locaux (gros volumes, pas pertinents en versioning)
+*.log
+*.log.gz
+logs/
+ossec-logs/
+
+# Données runtime Wazuh
+wazuh-data/
+filebeat-data/
+
+# Docker volumes
+volumes/
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Captures temporaires
+captures-tmp/
+*.tmp
+
+# Builds & dépendances
+node_modules/
+__pycache__/
+*.pyc
+.env
+.env.local
+
+# Mots de passe et secrets
+secret.txt
+passwords.txt
+internal_users.yml
