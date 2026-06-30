@@ -55,6 +55,6 @@ Voir le schéma complet dans le README à la racine du dépôt.
 ## Auteurs
 
 - **Morel CAPO-CHICHI** *(pilote technique, dépôt GitHub)*
-- **KONE Oumar** *(binôme)*
+- **KONE Oumar** *(binôme)* — [github.com/oumar953](https://github.com/oumar953)
 
 Projet réalisé dans le cadre du Mastère Cybersécurité ESGI Paris, 2025-2026 — Encadrement : **Léo Perochon**.

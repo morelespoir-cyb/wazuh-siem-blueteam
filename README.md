@@ -86,6 +86,6 @@ Projet pédagogique réalisé dans le cadre du Mastère Cybersécurité ESGI Par
   📧 morelespoir03@gmail.com · 🔗 [github.com/morelespoir-cyb](https://github.com/morelespoir-cyb)
 
 - **KONE Oumar** — binôme  
-  *(coordonnées à compléter)*
+  🔗 [github.com/oumar953](https://github.com/oumar953)
 
 Projet réalisé dans le cadre du Mastère Cybersécurité ESGI Paris, 2025-2026 — Encadrement : **Léo Perochon**.
