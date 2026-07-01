@@ -1,0 +1,76 @@
+# ============================================================================
+#   Règles auditd — Projet SIEM Wazuh BlueTeam ESGI 2025-2026
+#   Auteur : Morel CAPO-CHICHI · Binôme : KONE Oumar
+# ============================================================================
+# Objectif : générer des logs auditd exploitables pour 5 use cases améliorés
+# Réf. : https://github.com/Neo23x0/auditd
+# ============================================================================
+
+# --- 1. Effacer les règles précédentes au chargement ---
+-D
+
+# --- 2. Buffer étendu (défaut trop petit sur agent verbeux) ---
+-b 8192
+
+# --- 3. Panic mode si perte de logs (mode syslog pour ne pas planter la VM) ---
+-f 1
+
+# ============================================================================
+#  UC1 & UC2 : Surveillance authentification et connexions
+# ============================================================================
+-w /var/log/auth.log -p wa -k authentication
+-w /var/log/faillog -p wa -k faillog
+-w /var/log/lastlog -p wa -k lastlog
+
+# ============================================================================
+#  UC3 : Escalade de privilèges — création utilisateur + modif sudoers
+# ============================================================================
+-w /etc/passwd -p wa -k identity_users
+-w /etc/group -p wa -k identity_groups
+-w /etc/shadow -p wa -k identity_shadow
+-w /etc/gshadow -p wa -k identity_gshadow
+-w /etc/sudoers -p wa -k privilege_escalation_sudoers
+-w /etc/sudoers.d/ -p wa -k privilege_escalation_sudoers
+
+# --- Commandes de gestion utilisateurs ---
+-w /usr/sbin/useradd -p x -k user_management
+-w /usr/sbin/userdel -p x -k user_management
+-w /usr/sbin/usermod -p x -k user_management
+-w /usr/sbin/groupadd -p x -k group_management
+-w /usr/sbin/groupdel -p x -k group_management
+-w /usr/sbin/passwd -p x -k password_change
+
+# ============================================================================
+#  UC4 : Exécution de commandes sensibles (chmod, chown, sudo)
+# ============================================================================
+-w /usr/bin/chmod -p x -k perm_change
+-w /usr/bin/chown -p x -k perm_change
+-w /usr/bin/sudo -p x -k sudo_usage
+-w /usr/bin/su -p x -k su_usage
+
+# ============================================================================
+#  UC5 : Chaîne d'attaque téléchargement + exécution
+# ============================================================================
+-w /usr/bin/wget -p x -k download_tools
+-w /usr/bin/curl -p x -k download_tools
+-w /tmp -p wa -k tmp_activity
+-w /var/tmp -p wa -k tmp_activity
+
+# ============================================================================
+#  Bonus : Surveillance des tâches planifiées (persistence)
+# ============================================================================
+-w /etc/crontab -p wa -k cron_change
+-w /etc/cron.d/ -p wa -k cron_change
+-w /etc/cron.hourly/ -p wa -k cron_change
+-w /etc/cron.daily/ -p wa -k cron_change
+-w /var/spool/cron/ -p wa -k cron_change
+
+# ============================================================================
+#  Bonus : Surveillance modifications SSH
+# ============================================================================
+-w /etc/ssh/sshd_config -p wa -k ssh_config_change
+-w /root/.ssh/ -p wa -k ssh_keys_change
+
+# --- 4. Rendre les règles immuables (nécessite reboot pour modifier) ---
+# Commenté pour l'instant, à activer en prod
+# -e 2

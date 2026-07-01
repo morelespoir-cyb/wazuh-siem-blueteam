@@ -1,0 +1,47 @@
+<!--
+============================================================================
+  local_rules.xml — Règles Wazuh custom Sprint 2 BlueTeam
+============================================================================
+  Auteurs : Morel CAPO-CHICHI · KONE Oumar
+  Encadrement : Léo Perochon
+  Contexte : Projet ESGI Mastère Cybersécurité 4SI, 2025-2026
+
+  Structure :
+    - Group `local,syscheck,authentication_failures,` : conteneur principal
+    - Chaque use case est isolé dans un sous-groupe pour lisibilité
+    - IDs assignés dans la plage 100000-100099 (réservée aux règles custom)
+    - Mapping MITRE ATT&CK en attribut `mitre` pour bonus tagging
+
+  Convention IDs :
+    100000-100009 : UC1 Bruteforce SSH progressif
+    100010-100019 : UC2 Connexion root anormale
+    100020-100029 : UC3 Escalade de privilèges rapide
+    100030-100039 : UC4 Modification sudoers illégitime
+    100040-100049 : UC5 Chaîne d'attaque wget/curl → chmod → execution
+    100050-100099 : Bonus corrélations + règles de fréquence
+============================================================================
+-->
+
+<group name="local,wazuh_custom,sprint_2,">
+
+  <!-- ============================================================
+       UC1 : Bruteforce SSH progressif (à venir Bloc D)
+       ============================================================ -->
+
+  <!-- ============================================================
+       UC2 : Connexion root suspecte (à venir Bloc D)
+       ============================================================ -->
+
+  <!-- ============================================================
+       UC3 : Escalade de privilèges rapide (à venir Bloc D)
+       ============================================================ -->
+
+  <!-- ============================================================
+       UC4 : Modification sudoers illégitime (à venir Bloc D)
+       ============================================================ -->
+
+  <!-- ============================================================
+       UC5 : Chaîne d'attaque wget/curl → chmod → execution (à venir Bloc D)
+       ============================================================ -->
+
+</group>
