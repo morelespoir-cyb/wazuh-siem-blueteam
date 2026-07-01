@@ -6,12 +6,6 @@
   Encadrement : Léo Perochon
   Contexte : Projet ESGI Mastère Cybersécurité 4SI, 2025-2026
 
-  Structure :
-    - Group `local,syscheck,authentication_failures,` : conteneur principal
-    - Chaque use case est isolé dans un sous-groupe pour lisibilité
-    - IDs assignés dans la plage 100000-100099 (réservée aux règles custom)
-    - Mapping MITRE ATT&CK en attribut `mitre` pour bonus tagging
-
   Convention IDs :
     100000-100009 : UC1 Bruteforce SSH progressif
     100010-100019 : UC2 Connexion root anormale
@@ -25,23 +19,277 @@
 <group name="local,wazuh_custom,sprint_2,">
 
   <!-- ============================================================
-       UC1 : Bruteforce SSH progressif (à venir Bloc D)
+       UC1 : Bruteforce SSH progressif — MITRE T1110.001
+       ============================================================
+       - Wazuh détecte déjà les échecs SSH individuels (règle 5716)
+       - Nos règles ajoutent une logique progressive de gravité
+       - 3 seuils : préventif (3/60s), confirmé (5/60s), attaque (10/60s)
+       - Différenciation IP interne (192.168.56.0/24) vs externe
        ============================================================ -->
 
-  <!-- ============================================================
-       UC2 : Connexion root suspecte (à venir Bloc D)
-       ============================================================ -->
+  <!-- UC1.1 : Bruteforce SSH préventif — 3 échecs en 60s -->
+  <rule id="100000" level="5" frequency="3" timeframe="60">
+    <if_matched_sid>5716</if_matched_sid>
+    <same_source_ip />
+    <description>UC1.1 — Bruteforce SSH préventif : 3 échecs d'authentification en 60s depuis $(srcip)</description>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+    <group>authentication_failures,pci_dss_10.2.4,pci_dss_10.2.5,pci_dss_11.4,gpg13_7.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_AU.14,nist_800_53_AC.7,tsc_CC6.1,tsc_CC6.8,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+  <!-- UC1.2 : Bruteforce SSH confirmé — 5 échecs en 60s -->
+  <rule id="100001" level="10" frequency="5" timeframe="60">
+    <if_matched_sid>5716</if_matched_sid>
+    <same_source_ip />
+    <description>UC1.2 — Bruteforce SSH confirmé : 5 échecs d'authentification en 60s depuis $(srcip)</description>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+    <group>authentication_failures,attack,pci_dss_10.2.4,pci_dss_10.2.5,pci_dss_11.4,gpg13_7.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_AU.14,nist_800_53_AC.7,tsc_CC6.1,tsc_CC6.8,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+  <!-- UC1.3 : Bruteforce SSH — attaque active (10 échecs en 60s) -->
+  <rule id="100002" level="15" frequency="10" timeframe="60">
+    <if_matched_sid>5716</if_matched_sid>
+    <same_source_ip />
+    <description>UC1.3 — ATTAQUE ACTIVE : 10 échecs SSH en 60s depuis $(srcip) — Bruteforce en cours</description>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+    <group>authentication_failures,attack,critical,pci_dss_10.2.4,pci_dss_10.2.5,pci_dss_11.4,gpg13_7.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_AU.14,nist_800_53_AC.7,tsc_CC6.1,tsc_CC6.8,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+  <!-- UC1.4 : Succès SSH après tentatives (compromission probable) -->
+  <rule id="100003" level="12">
+    <if_sid>5715</if_sid>
+    <if_matched_sid>100001</if_matched_sid>
+    <same_source_ip />
+    <description>UC1.4 — CONNEXION SSH RÉUSSIE après bruteforce depuis $(srcip) — Compromission probable</description>
+    <mitre>
+      <id>T1110.001</id>
+      <id>T1078</id>
+    </mitre>
+    <group>authentication_success,attack,critical,pci_dss_10.2.4,pci_dss_10.2.5,gpg13_7.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_AU.14,tsc_CC6.1,tsc_CC6.8,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
 
   <!-- ============================================================
-       UC3 : Escalade de privilèges rapide (à venir Bloc D)
+       UC2 : Connexion root suspecte — MITRE T1078.003
+       ============================================================
+       - Rule 5715 = SSH login success (built-in Wazuh)
+       - On surenchérit avec 2 axes : IP hors LAN, horaires atypiques
        ============================================================ -->
 
-  <!-- ============================================================
-       UC4 : Modification sudoers illégitime (à venir Bloc D)
-       ============================================================ -->
+  <!-- UC2.1 : Connexion root SSH réussie depuis IP externe (hors 192.168.56.0/24) -->
+  <rule id="100010" level="12">
+    <if_sid>5715</if_sid>
+    <user>root</user>
+    <srcip>!192.168.56.0/24</srcip>
+    <description>UC2.1 — CONNEXION ROOT SSH depuis IP externe $(srcip) — Origine anormale</description>
+    <mitre>
+      <id>T1078.003</id>
+    </mitre>
+    <group>authentication_success,pci_dss_10.2.5,gpg13_7.6,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,nist_800_53_AC.7,tsc_CC6.1,tsc_CC6.8,</group>
+  </rule>
+
+  <!-- UC2.2 : Connexion root SSH réussie en horaires atypiques (22h-6h) -->
+  <rule id="100011" level="10">
+    <if_sid>5715</if_sid>
+    <user>root</user>
+    <time>10 pm - 6 am</time>
+    <description>UC2.2 — CONNEXION ROOT SSH en horaires atypiques (22h-6h) depuis $(srcip)</description>
+    <mitre>
+      <id>T1078.003</id>
+    </mitre>
+    <group>authentication_success,pci_dss_10.2.5,gpg13_7.6,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,nist_800_53_AC.7,tsc_CC6.1,tsc_CC6.8,</group>
+  </rule>
+
+  <!-- UC2.3 : Usage direct de "su root" (élévation locale, tag auditd su_usage) -->
+  <rule id="100012" level="8">
+    <if_sid>80700</if_sid>
+    <field name="audit.key">su_usage</field>
+    <description>UC2.3 — Utilisation de "su" détectée par auditd sur $(agent.name)</description>
+    <mitre>
+      <id>T1078.003</id>
+    </mitre>
+    <group>privilege_escalation,pci_dss_10.2.5,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,tsc_CC6.1,</group>
+  </rule>
 
   <!-- ============================================================
-       UC5 : Chaîne d'attaque wget/curl → chmod → execution (à venir Bloc D)
+
+  <!-- ============================================================
+       UC3 : Escalade de privilèges rapide — MITRE T1136.001 + T1548.003
+       ============================================================
+       Détection en 2 temps :
+       1. Création d'un compte utilisateur (useradd)
+       2. Ajout de ce compte aux sudoers (/etc/sudoers.d/*)
+       Corrélation : les 2 événements en < 60s = attaque quasi-signature.
        ============================================================ -->
+
+  <!-- UC3.1 : Détection création utilisateur (via auditd tag user_management) -->
+  <rule id="100020" level="5">
+    <if_sid>80700</if_sid>
+    <field name="audit.key">user_management</field>
+    <description>UC3.1 — Commande de gestion utilisateur détectée sur $(agent.name)</description>
+    <mitre>
+      <id>T1136.001</id>
+    </mitre>
+    <group>user_management,pci_dss_10.2.5,gpg13_7.9,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,tsc_CC6.1,</group>
+  </rule>
+
+  <!-- UC3.2 : Détection modification sudoers (via auditd tag privilege_escalation_sudoers) -->
+  <rule id="100021" level="8">
+    <if_sid>80700</if_sid>
+    <field name="audit.key">privilege_escalation_sudoers</field>
+    <description>UC3.2 — Modification de /etc/sudoers ou /etc/sudoers.d/ détectée sur $(agent.name)</description>
+    <mitre>
+      <id>T1548.003</id>
+    </mitre>
+    <group>privilege_escalation,pci_dss_10.2.5,gpg13_7.9,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,tsc_CC6.1,tsc_CC6.8,</group>
+  </rule>
+
+  <!-- UC3.3 : CORRÉLATION — création user + modif sudoers en moins de 60s -->
+  <rule id="100022" level="15" timeframe="60">
+    <if_matched_sid>100020</if_matched_sid>
+    <if_sid>100021</if_sid>
+    <description>UC3.3 — ATTAQUE CRITIQUE : Création utilisateur + modification sudoers en moins de 60s sur $(agent.name)</description>
+    <mitre>
+      <id>T1136.001</id>
+      <id>T1548.003</id>
+    </mitre>
+    <group>privilege_escalation,attack,critical,pci_dss_10.2.5,gpg13_7.9,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,tsc_CC6.1,tsc_CC6.8,tsc_CC7.2,</group>
+  </rule>
+
+  <!-- UC3.4 : Bonus — usermod ajoutant à un groupe privilégié (sudo, wheel, admin) -->
+  <rule id="100023" level="14">
+    <if_sid>80700</if_sid>
+    <field name="audit.key">user_management</field>
+    <match>usermod</match>
+    <description>UC3.4 — Modification utilisateur via usermod (à corréler avec ajout à groupe privilégié) sur $(agent.name)</description>
+    <mitre>
+      <id>T1548.003</id>
+    </mitre>
+    <group>privilege_escalation,attack,pci_dss_10.2.5,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,tsc_CC6.1,tsc_CC6.8,</group>
+  </rule>
+
+  <!-- ============================================================
+
+  <!-- ============================================================
+       UC4 : Modification sudoers illégitime — MITRE T1548.003
+       ============================================================
+       Détecte les modifications sudoers via outils non-standard
+       (sed, tee, echo >>, cat >>) plutôt que visudo.
+       Complète UC3.2 en filtrant les patterns d'attaque connus.
+       ============================================================ -->
+
+  <!-- UC4.1 : Modification /etc/sudoers via commande non-visudo -->
+  <rule id="100030" level="12">
+    <if_sid>80700</if_sid>
+    <field name="audit.key">privilege_escalation_sudoers</field>
+    <match>sed|tee|echo</match>
+    <description>UC4.1 — Modification /etc/sudoers via outil non-standard sur $(agent.name) — Suspect</description>
+    <mitre>
+      <id>T1548.003</id>
+    </mitre>
+    <group>privilege_escalation,attack,pci_dss_10.2.5,gpg13_7.9,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,nist_800_53_AC.6,tsc_CC6.1,tsc_CC6.8,tsc_CC7.2,</group>
+  </rule>
+
+  <!-- UC4.2 : Création/écriture nouveau fichier dans /etc/sudoers.d/ -->
+  <rule id="100031" level="12">
+    <if_sid>80700</if_sid>
+    <field name="audit.key">privilege_escalation_sudoers</field>
+    <field name="audit.file.name" type="pcre2">^/etc/sudoers\.d/</field>
+    <description>UC4.2 — Création ou écriture dans /etc/sudoers.d/ sur $(agent.name) — Backdoor probable</description>
+    <mitre>
+      <id>T1548.003</id>
+    </mitre>
+    <group>privilege_escalation,attack,pci_dss_10.2.5,gpg13_7.9,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,nist_800_53_AC.6,tsc_CC6.1,tsc_CC6.8,tsc_CC7.2,</group>
+  </rule>
+
+  <!-- UC4.3 : Corrélation — modif sudoers + syscheck FIM (double alerte croisée) -->
+  <rule id="100032" level="15" timeframe="30">
+    <if_matched_sid>100030</if_matched_sid>
+    <if_sid>550</if_sid>
+    <description>UC4.3 — ATTAQUE CONFIRMÉE : modification sudoers confirmée par FIM Wazuh sur $(agent.name)</description>
+    <mitre>
+      <id>T1548.003</id>
+    </mitre>
+    <group>privilege_escalation,attack,critical,pci_dss_10.2.5,gpg13_7.9,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,nist_800_53_AC.6,tsc_CC6.1,tsc_CC6.8,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+  <!-- ============================================================
+
+  <!-- ============================================================
+       UC5 : Chaîne d'attaque wget/curl → chmod +x → execution
+       MITRE T1105 (Ingress Tool Transfer) + T1059 (Interpreter)
+       ============================================================
+       Le scénario classique post-compromission :
+       1. Télécharger un payload depuis un C2 (wget/curl)
+       2. Le rendre exécutable (chmod +x)
+       3. L'exécuter (surtout depuis /tmp)
+       La corrélation temporelle rend le pattern quasi-signature.
+       ============================================================ -->
+
+  <!-- UC5.1 : Détection téléchargement via wget/curl (préventif) -->
+  <rule id="100040" level="5">
+    <if_sid>80700</if_sid>
+    <field name="audit.key">download_tools</field>
+    <description>UC5.1 — Téléchargement via wget/curl détecté sur $(agent.name)</description>
+    <mitre>
+      <id>T1105</id>
+    </mitre>
+    <group>ingress_tool_transfer,pci_dss_10.2.5,gpg13_7.9,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,nist_800_53_SI.4,tsc_CC6.1,tsc_CC6.8,</group>
+  </rule>
+
+  <!-- UC5.2 : chmod exécuté (rend un fichier exécutable) -->
+  <rule id="100041" level="8">
+    <if_sid>80700</if_sid>
+    <field name="audit.key">perm_change</field>
+    <match>chmod</match>
+    <description>UC5.2 — Changement de permissions (chmod) détecté sur $(agent.name) — Potentiellement +x</description>
+    <mitre>
+      <id>T1222.002</id>
+    </mitre>
+    <group>defense_evasion,pci_dss_10.2.5,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,tsc_CC6.1,</group>
+  </rule>
+
+  <!-- UC5.3 : CORRÉLATION — download + chmod en moins de 120s -->
+  <rule id="100042" level="13" timeframe="120">
+    <if_matched_sid>100040</if_matched_sid>
+    <if_sid>100041</if_sid>
+    <description>UC5.3 — CHAÎNE SUSPECTE : téléchargement + chmod dans les 120s sur $(agent.name) — Préparation d'attaque probable</description>
+    <mitre>
+      <id>T1105</id>
+      <id>T1222.002</id>
+    </mitre>
+    <group>ingress_tool_transfer,defense_evasion,attack,pci_dss_10.2.5,gpg13_7.9,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,nist_800_53_SI.4,tsc_CC6.1,tsc_CC6.8,tsc_CC7.2,</group>
+  </rule>
+
+  <!-- UC5.4 : CORRÉLATION FULL CHAIN — download + chmod + activité /tmp -->
+  <rule id="100043" level="15" timeframe="180">
+    <if_matched_sid>100042</if_matched_sid>
+    <if_sid>80700</if_sid>
+    <field name="audit.key">tmp_activity</field>
+    <description>UC5.4 — ATTAQUE ACTIVE : chaîne complète download → chmod → activité /tmp sur $(agent.name) — Payload probable en cours d'exécution</description>
+    <mitre>
+      <id>T1105</id>
+      <id>T1059</id>
+      <id>T1222.002</id>
+    </mitre>
+    <group>ingress_tool_transfer,execution,attack,critical,pci_dss_10.2.5,gpg13_7.9,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,nist_800_53_SI.4,tsc_CC6.1,tsc_CC6.8,tsc_CC7.2,tsc_CC7.3,</group>
+  </rule>
+
+  <!-- UC5.5 : Bonus — download suivi d'écriture dans /tmp (variante sans chmod) -->
+  <rule id="100044" level="12" timeframe="60">
+    <if_matched_sid>100040</if_matched_sid>
+    <if_sid>80700</if_sid>
+    <field name="audit.key">tmp_activity</field>
+    <description>UC5.5 — Téléchargement suivi d'écriture dans /tmp en moins de 60s sur $(agent.name) — Staging de payload</description>
+    <mitre>
+      <id>T1105</id>
+      <id>T1036</id>
+    </mitre>
+    <group>ingress_tool_transfer,defense_evasion,attack,pci_dss_10.2.5,gdpr_IV_32.2,hipaa_164.312.b,nist_800_53_AU.14,tsc_CC6.1,tsc_CC6.8,</group>
+  </rule>
 
 </group>
